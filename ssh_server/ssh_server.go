@@ -13,8 +13,10 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
+	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -28,6 +30,44 @@ func HandleChannels(shell string, chans <-chan ssh.NewChannel) {
 }
 
 func handleChannel(shell string, newChannel ssh.NewChannel) {
+	// (base: https://github.com/peertechde/zodiac/blob/110fdd2dfd27359546c1cd75a9fec5de2882bf42/pkg/server/server.go#L228)
+	if t := newChannel.ChannelType(); t == "direct-tcpip" {
+		var msg struct {
+			RemoteAddr string
+			RemotePort uint32
+			SourceAddr string
+			SourcePort uint32
+		}
+		if err := ssh.Unmarshal(newChannel.ExtraData(), &msg); err != nil {
+			log.Printf("error in parse message (%v)", err)
+			return
+		}
+		channel, reqs, err := newChannel.Accept()
+		if err != nil {
+			log.Printf("accept error (%v)", err)
+			return
+		}
+		go ssh.DiscardRequests(reqs)
+		raddr := net.JoinHostPort(msg.RemoteAddr, strconv.Itoa(int(msg.RemotePort)))
+		conn, err := net.Dial("tcp", raddr)
+		if err != nil {
+			log.Printf("dial error (%v)", err)
+			channel.Close()
+			return
+		}
+		var closeOnce sync.Once
+		closer := func() {
+			channel.Close()
+			conn.Close()
+		}
+		go func() {
+			io.Copy(channel, conn)
+			closeOnce.Do(closer)
+		}()
+		io.Copy(conn, channel)
+		closeOnce.Do(closer)
+		return
+	}
 	// Since we're handling a shell, we expect a
 	// channel type of "session". The also describes
 	// "x11", "direct-tcpip" and "forwarded-tcpip"
