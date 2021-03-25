@@ -31,6 +31,7 @@ var httpReadBufSize int
 var sshYamux bool
 var sshUser string
 var sshPassword string
+var sshShell string
 
 func init() {
 	cobra.OnInitialize()
@@ -48,6 +49,7 @@ func init() {
 	RootCmd.Flags().BoolVarP(&showsVersion, "version", "v", false, "show version")
 	RootCmd.Flags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
 	RootCmd.Flags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
+	RootCmd.Flags().StringVarP(&sshShell, "shell", "", "", "Shell")
 	RootCmd.Flags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
 }
 
@@ -128,7 +130,7 @@ var RootCmd = &cobra.Command{
 			// Discard all global out-of-band Requests
 			go ssh.DiscardRequests(reqs)
 			// Accept all channels
-			ssh_server.HandleChannels(chans)
+			ssh_server.HandleChannels(sshShell, chans)
 		}
 
 		// If yamux is enabled
@@ -212,7 +214,7 @@ func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, he
 			// Discard all global out-of-band Requests
 			go ssh.DiscardRequests(reqs)
 			// Accept all channels
-			ssh_server.HandleChannels(chans)
+			ssh_server.HandleChannels(sshShell, chans)
 		}()
 	}
 }

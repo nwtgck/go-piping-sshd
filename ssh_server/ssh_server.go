@@ -13,20 +13,21 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
 	"unsafe"
 )
 
-func HandleChannels(chans <-chan ssh.NewChannel) {
+func HandleChannels(shell string, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
-		go handleChannel(newChannel)
+		go handleChannel(shell, newChannel)
 	}
 }
 
-func handleChannel(newChannel ssh.NewChannel) {
+func handleChannel(shell string, newChannel ssh.NewChannel) {
 	// Since we're handling a shell, we expect a
 	// channel type of "session". The also describes
 	// "x11", "direct-tcpip" and "forwarded-tcpip"
@@ -44,14 +45,19 @@ func handleChannel(newChannel ssh.NewChannel) {
 		return
 	}
 
+	if shell == "" {
+		shell = os.Getenv("SHELL")
+	}
+	if shell == "" {
+		shell = "sh"
+	}
 	// Fire up bash for this session
-	// TODO: hard code shell
-	bash := exec.Command("sh")
+	sh := exec.Command(shell)
 
 	// Prepare teardown function
 	close := func() {
 		connection.Close()
-		_, err := bash.Process.Wait()
+		_, err := sh.Process.Wait()
 		if err != nil {
 			log.Printf("Failed to exit bash (%s)", err)
 		}
@@ -60,7 +66,7 @@ func handleChannel(newChannel ssh.NewChannel) {
 
 	// Allocate a terminal for this channel
 	log.Print("Creating pty...")
-	bashf, err := pty.Start(bash)
+	shf, err := pty.Start(sh)
 	if err != nil {
 		log.Printf("Could not start pty (%s)", err)
 		close()
@@ -70,11 +76,11 @@ func handleChannel(newChannel ssh.NewChannel) {
 	//pipe session to bash and visa-versa
 	var once sync.Once
 	go func() {
-		io.Copy(connection, bashf)
+		io.Copy(connection, shf)
 		once.Do(close)
 	}()
 	go func() {
-		io.Copy(bashf, connection)
+		io.Copy(shf, connection)
 		once.Do(close)
 	}()
 
@@ -91,13 +97,13 @@ func handleChannel(newChannel ssh.NewChannel) {
 			case "pty-req":
 				termLen := req.Payload[3]
 				w, h := parseDims(req.Payload[termLen+4:])
-				SetWinsize(bashf.Fd(), w, h)
+				SetWinsize(shf.Fd(), w, h)
 				// Responding true (OK) here will let the client
 				// know we have a pty ready for input
 				req.Reply(true, nil)
 			case "window-change":
 				w, h := parseDims(req.Payload)
-				SetWinsize(bashf.Fd(), w, h)
+				SetWinsize(shf.Fd(), w, h)
 			}
 		}
 	}()
