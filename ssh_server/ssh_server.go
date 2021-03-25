@@ -9,7 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/pem"
 	"fmt"
-	"github.com/kr/pty"
+	"github.com/creack/pty"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
