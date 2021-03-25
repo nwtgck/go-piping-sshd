@@ -1,0 +1,48 @@
+project_name: piping-sshd
+builds:
+  - env:
+      - CGO_ENABLED=0
+    # NOTE: Windows is not supported now
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm
+      - arm64
+      - 386
+      - ppc64le
+      - s390x
+      - mips64
+      - mips64le
+    goarm:
+      - 6
+      - 7
+    main: ./main/main.go
+archives:
+  - name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}-{{ .Mips }}{{ end }}'
+    format_overrides:
+      - goos: windows
+        format: zip
+nfpms:
+  - license: MIT
+    maintainer: Ryo Ota <nwtgck@nwtgck.org>
+    homepage: https://github.com/nwtgck/go-piping-sshd
+    description: "SSH server from anywhere with Piping Server"
+    formats:
+      - rpm
+      - deb
+    file_name_template: '{{ .ProjectName }}-{{ .Version }}-{{ .Os }}-{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}{{ if .Mips }}-{{ .Mips }}{{ end }}'
+checksum:
+  name_template: 'checksums.txt'
+release:
+  github:
+  disable: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+brews:
+  - tap:
+      owner: nwtgck
+      name: homebrew-piping-sshd
+    homepage: "https://github.com/nwtgck/go-piping-sshd"
+    description: "SSH server from anywhere with Piping Server"
