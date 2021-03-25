@@ -3,7 +3,7 @@ SSH server from anywhere with [Piping Server](https://github.com/nwtgck/piping-s
 
 ## Thanks
 
-SSH server implementation is highly based on <https://github.com/jpillora/sshd-lite/blob/master/server/server.go>. Thanks!
+SSH server implementation for shell is highly based on <https://github.com/jpillora/sshd-lite/blob/master/server/server.go>. Thanks!
 
 ## Install for macOS
 ```bash
