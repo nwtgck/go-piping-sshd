@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/creack/pty"
+	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -62,8 +63,11 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 				log.Printf("error in parse message (%v) in exec", err)
 				return
 			}
-			// TODO: not use sh -c
-			cmd := exec.Command("sh", "-c", msg.Command)
+			cmdSlice, err := shellwords.Parse(msg.Command)
+			if err != nil {
+				return
+			}
+			cmd := exec.Command(cmdSlice[0], cmdSlice[1:]...)
 			stdin, err := cmd.StdinPipe()
 			if err != nil {
 				return
