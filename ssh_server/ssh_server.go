@@ -60,44 +60,7 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	for req := range requests {
 		switch req.Type {
 		case "exec":
-			var msg struct {
-				Command string
-			}
-			if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
-				log.Printf("error in parse message (%v) in exec", err)
-				return
-			}
-			cmdSlice, err := shellwords.Parse(msg.Command)
-			if err != nil {
-				return
-			}
-			cmd := exec.Command(cmdSlice[0], cmdSlice[1:]...)
-			stdin, err := cmd.StdinPipe()
-			if err != nil {
-				return
-			}
-			stdout, err := cmd.StdoutPipe()
-			if err != nil {
-				return
-			}
-			stderr, err := cmd.StderrPipe()
-			if err != nil {
-				return
-			}
-			go io.Copy(stdin, connection)
-			go io.Copy(connection, stdout)
-			go io.Copy(connection, stderr)
-			req.Reply(true, nil)
-			var exitCode int
-			if err := cmd.Run(); err != nil {
-				if exitErr, ok := err.(*exec.ExitError); ok {
-					exitCode = exitErr.ExitCode()
-				}
-			}
-			connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
-				Status: uint32(exitCode),
-			}))
-			connection.Close()
+			handleExecRequest(req, connection)
 		case "shell":
 			// We only accept the default shell
 			// (i.e. no command in the Payload)
@@ -122,6 +85,47 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 			}
 		}
 	}
+}
+
+func handleExecRequest(req *ssh.Request, connection ssh.Channel) {
+	var msg struct {
+		Command string
+	}
+	if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
+		log.Printf("error in parse message (%v) in exec", err)
+		return
+	}
+	cmdSlice, err := shellwords.Parse(msg.Command)
+	if err != nil {
+		return
+	}
+	cmd := exec.Command(cmdSlice[0], cmdSlice[1:]...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return
+	}
+	go io.Copy(stdin, connection)
+	go io.Copy(connection, stdout)
+	go io.Copy(connection, stderr)
+	req.Reply(true, nil)
+	var exitCode int
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+	}
+	connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
+		Status: uint32(exitCode),
+	}))
+	connection.Close()
 }
 
 func createPty(shell string, connection ssh.Channel) (*os.File, error) {
