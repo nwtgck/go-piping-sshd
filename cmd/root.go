@@ -98,9 +98,8 @@ var RootCmd = &cobra.Command{
 				}
 				return nil, fmt.Errorf("password rejected for %q", c.User())
 			},
-			// You may also explicitly allow anonymous client authentication, though anon bash
-			// sessions may not be a wise idea
-			// NoClientAuth: true,
+			// No auth when password is empty
+			NoClientAuth: sshPassword == "",
 		}
 		// TODO: specify key by flags
 		key, err := ssh_server.GenerateKey()
@@ -167,11 +166,11 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 		serverToClientPath,
 	)
 	fmt.Println("=== SSH client ===")
-	user := sshUser
-	if sshUser == "" {
-		user = "dummy"
+	userAndHost := "localhost"
+	if sshUser != "" {
+		userAndHost = sshUser + "@localhost"
 	}
-	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s@localhost\n", clientHostPort, clientHostPort, user)
+	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s\n", clientHostPort, clientHostPort, userAndHost)
 }
 
 func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
