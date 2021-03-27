@@ -98,9 +98,8 @@ var RootCmd = &cobra.Command{
 				}
 				return nil, fmt.Errorf("password rejected for %q", c.User())
 			},
-			// You may also explicitly allow anonymous client authentication, though anon bash
-			// sessions may not be a wise idea
-			// NoClientAuth: true,
+			// No auth when password is empty
+			NoClientAuth: sshPassword == "",
 		}
 		// TODO: specify key by flags
 		key, err := ssh_server.GenerateKey()
