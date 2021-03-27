@@ -52,9 +52,43 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 
 	var shf *os.File = nil
 
-	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
 	for req := range requests {
 		switch req.Type {
+		case "exec":
+			var msg struct {
+				Command string
+			}
+			if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
+				log.Printf("error in parse message (%v) in exec", err)
+				return
+			}
+			// TODO: not use sh -c
+			cmd := exec.Command("sh", "-c", msg.Command)
+			stdin, err := cmd.StdinPipe()
+			if err != nil {
+				return
+			}
+			stdout, err := cmd.StdoutPipe()
+			if err != nil {
+				return
+			}
+			stderr, err := cmd.StderrPipe()
+			if err != nil {
+				return
+			}
+			go io.Copy(stdin, connection)
+			go io.Copy(connection, stdout)
+			go io.Copy(connection, stderr)
+			req.Reply(true, nil)
+			var exitCode int
+			if err := cmd.Run(); err != nil {
+				if exitErr, ok := err.(*exec.ExitError); ok {
+					exitCode = exitErr.ExitCode()
+				}
+			}
+			resMsg := struct{ Status uint32 }{Status: uint32(exitCode)}
+			connection.SendRequest("exit-status", false, ssh.Marshal(resMsg))
+			connection.Close()
 		case "shell":
 			// We only accept the default shell
 			// (i.e. no command in the Payload)
