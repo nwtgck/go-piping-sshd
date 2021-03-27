@@ -24,6 +24,10 @@ import (
 	"unsafe"
 )
 
+type exitStatusMsg struct {
+	Status uint32
+}
+
 func HandleChannels(shell string, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
@@ -90,8 +94,9 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 					exitCode = exitErr.ExitCode()
 				}
 			}
-			resMsg := struct{ Status uint32 }{Status: uint32(exitCode)}
-			connection.SendRequest("exit-status", false, ssh.Marshal(resMsg))
+			connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
+				Status: uint32(exitCode),
+			}))
 			connection.Close()
 		case "shell":
 			// We only accept the default shell
@@ -131,6 +136,9 @@ func createPty(shell string, connection ssh.Channel) (*os.File, error) {
 
 	// Prepare teardown function
 	closer := func() {
+		connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
+			Status: 0,
+		}))
 		connection.Close()
 		_, err := sh.Process.Wait()
 		if err != nil {
