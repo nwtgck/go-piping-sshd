@@ -167,11 +167,11 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 		serverToClientPath,
 	)
 	fmt.Println("=== SSH client ===")
-	user := sshUser
-	if sshUser == "" {
-		user = "dummy"
+	userAndHost := "localhost"
+	if sshUser != "" {
+		userAndHost = sshUser + "@localhost"
 	}
-	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s@localhost\n", clientHostPort, clientHostPort, user)
+	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s\n", clientHostPort, clientHostPort, userAndHost)
 }
 
 func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
