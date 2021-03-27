@@ -10,6 +10,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/creack/pty"
+	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
@@ -49,6 +50,38 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 		return
 	}
 
+	var shf *os.File = nil
+
+	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
+	for req := range requests {
+		switch req.Type {
+		case "shell":
+			// We only accept the default shell
+			// (i.e. no command in the Payload)
+			if len(req.Payload) == 0 {
+				req.Reply(true, nil)
+			}
+		case "pty-req":
+			termLen := req.Payload[3]
+			w, h := parseDims(req.Payload[termLen+4:])
+			shf, err = createPty(shell, connection)
+			if err != nil {
+				return
+			}
+			SetWinsize(shf.Fd(), w, h)
+			// Responding true (OK) here will let the client
+			// know we have a pty ready for input
+			req.Reply(true, nil)
+		case "window-change":
+			w, h := parseDims(req.Payload)
+			if shf != nil {
+				SetWinsize(shf.Fd(), w, h)
+			}
+		}
+	}
+}
+
+func createPty(shell string, connection ssh.Channel) (*os.File, error) {
 	if shell == "" {
 		shell = os.Getenv("SHELL")
 	}
@@ -59,7 +92,7 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	sh := exec.Command(shell)
 
 	// Prepare teardown function
-	close := func() {
+	closer := func() {
 		connection.Close()
 		_, err := sh.Process.Wait()
 		if err != nil {
@@ -73,44 +106,21 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	shf, err := pty.Start(sh)
 	if err != nil {
 		log.Printf("Could not start pty (%s)", err)
-		close()
-		return
+		closer()
+		return nil, errors.Errorf("could not start pty (%s)", err)
 	}
 
-	//pipe session to bash and visa-versa
+	// pipe session to bash and visa-versa
 	var once sync.Once
 	go func() {
 		io.Copy(connection, shf)
-		once.Do(close)
+		once.Do(closer)
 	}()
 	go func() {
 		io.Copy(shf, connection)
-		once.Do(close)
+		once.Do(closer)
 	}()
-
-	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
-	go func() {
-		for req := range requests {
-			switch req.Type {
-			case "shell":
-				// We only accept the default shell
-				// (i.e. no command in the Payload)
-				if len(req.Payload) == 0 {
-					req.Reply(true, nil)
-				}
-			case "pty-req":
-				termLen := req.Payload[3]
-				w, h := parseDims(req.Payload[termLen+4:])
-				SetWinsize(shf.Fd(), w, h)
-				// Responding true (OK) here will let the client
-				// know we have a pty ready for input
-				req.Reply(true, nil)
-			case "window-change":
-				w, h := parseDims(req.Payload)
-				SetWinsize(shf.Fd(), w, h)
-			}
-		}
-	}()
+	return shf, nil
 }
 
 // (base: https://github.com/peertechde/zodiac/blob/110fdd2dfd27359546c1cd75a9fec5de2882bf42/pkg/server/server.go#L228)
