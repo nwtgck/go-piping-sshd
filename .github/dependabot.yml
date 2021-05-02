@@ -10,7 +10,3 @@ updates:
   - nwtgck
   assignees:
   - nwtgck
-  ignore:
-  - dependency-name: github.com/kr/pty
-    versions:
-    - 1.1.8
