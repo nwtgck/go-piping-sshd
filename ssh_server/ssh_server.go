@@ -12,6 +12,7 @@ import (
 	"github.com/creack/pty"
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
@@ -83,6 +84,8 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 			if shf != nil {
 				SetWinsize(shf.Fd(), w, h)
 			}
+		case "subsystem":
+			handleSessionSubSystem(req, connection)
 		}
 	}
 }
@@ -126,6 +129,27 @@ func handleExecRequest(req *ssh.Request, connection ssh.Channel) {
 		Status: uint32(exitCode),
 	}))
 	connection.Close()
+}
+
+func handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
+	// https://github.com/pkg/sftp/blob/42e9800606febe03f9cdf1d1283719af4a5e6456/examples/go-sftp-server/main.go#L111
+	ok := string(req.Payload[4:]) == "sftp"
+	req.Reply(ok, nil)
+
+	serverOptions := []sftp.ServerOption{
+		sftp.WithDebug(os.Stderr),
+	}
+	sftpServer, err := sftp.NewServer(connection, serverOptions...)
+	if err != nil {
+		log.Printf("failed to create sftp server (%v)", err)
+		return
+	}
+	if err := sftpServer.Serve(); err == io.EOF {
+		sftpServer.Close()
+	} else if err != nil {
+		log.Printf("failed to serve sftp server (%v)", err)
+		return
+	}
 }
 
 func createPty(shell string, connection ssh.Channel) (*os.File, error) {
