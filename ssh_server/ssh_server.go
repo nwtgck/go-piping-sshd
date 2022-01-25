@@ -10,6 +10,9 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/creack/pty"
+	"github.com/mattn/go-shellwords"
+	"github.com/pkg/errors"
+	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
 	"log"
@@ -21,6 +24,10 @@ import (
 	"syscall"
 	"unsafe"
 )
+
+type exitStatusMsg struct {
+	Status uint32
+}
 
 func HandleChannels(shell string, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
@@ -49,6 +56,103 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 		return
 	}
 
+	var shf *os.File = nil
+
+	for req := range requests {
+		switch req.Type {
+		case "exec":
+			handleExecRequest(req, connection)
+		case "shell":
+			// We only accept the default shell
+			// (i.e. no command in the Payload)
+			if len(req.Payload) == 0 {
+				req.Reply(true, nil)
+			}
+		case "pty-req":
+			termLen := req.Payload[3]
+			w, h := parseDims(req.Payload[termLen+4:])
+			shf, err = createPty(shell, connection)
+			if err != nil {
+				return
+			}
+			SetWinsize(shf.Fd(), w, h)
+			// Responding true (OK) here will let the client
+			// know we have a pty ready for input
+			req.Reply(true, nil)
+		case "window-change":
+			w, h := parseDims(req.Payload)
+			if shf != nil {
+				SetWinsize(shf.Fd(), w, h)
+			}
+		case "subsystem":
+			handleSessionSubSystem(req, connection)
+		}
+	}
+}
+
+func handleExecRequest(req *ssh.Request, connection ssh.Channel) {
+	var msg struct {
+		Command string
+	}
+	if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
+		log.Printf("error in parse message (%v) in exec", err)
+		return
+	}
+	cmdSlice, err := shellwords.Parse(msg.Command)
+	if err != nil {
+		return
+	}
+	cmd := exec.Command(cmdSlice[0], cmdSlice[1:]...)
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return
+	}
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return
+	}
+	go io.Copy(stdin, connection)
+	go io.Copy(connection, stdout)
+	go io.Copy(connection, stderr)
+	req.Reply(true, nil)
+	var exitCode int
+	if err := cmd.Run(); err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			exitCode = exitErr.ExitCode()
+		}
+	}
+	connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
+		Status: uint32(exitCode),
+	}))
+	connection.Close()
+}
+
+func handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
+	// https://github.com/pkg/sftp/blob/42e9800606febe03f9cdf1d1283719af4a5e6456/examples/go-sftp-server/main.go#L111
+	ok := string(req.Payload[4:]) == "sftp"
+	req.Reply(ok, nil)
+
+	serverOptions := []sftp.ServerOption{
+		sftp.WithDebug(os.Stderr),
+	}
+	sftpServer, err := sftp.NewServer(connection, serverOptions...)
+	if err != nil {
+		log.Printf("failed to create sftp server (%v)", err)
+		return
+	}
+	if err := sftpServer.Serve(); err == io.EOF {
+		sftpServer.Close()
+	} else if err != nil {
+		log.Printf("failed to serve sftp server (%v)", err)
+		return
+	}
+}
+
+func createPty(shell string, connection ssh.Channel) (*os.File, error) {
 	if shell == "" {
 		shell = os.Getenv("SHELL")
 	}
@@ -59,7 +163,10 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	sh := exec.Command(shell)
 
 	// Prepare teardown function
-	close := func() {
+	closer := func() {
+		connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
+			Status: 0,
+		}))
 		connection.Close()
 		_, err := sh.Process.Wait()
 		if err != nil {
@@ -73,44 +180,21 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	shf, err := pty.Start(sh)
 	if err != nil {
 		log.Printf("Could not start pty (%s)", err)
-		close()
-		return
+		closer()
+		return nil, errors.Errorf("could not start pty (%s)", err)
 	}
 
-	//pipe session to bash and visa-versa
+	// pipe session to bash and visa-versa
 	var once sync.Once
 	go func() {
 		io.Copy(connection, shf)
-		once.Do(close)
+		once.Do(closer)
 	}()
 	go func() {
 		io.Copy(shf, connection)
-		once.Do(close)
+		once.Do(closer)
 	}()
-
-	// Sessions have out-of-band requests such as "shell", "pty-req" and "env"
-	go func() {
-		for req := range requests {
-			switch req.Type {
-			case "shell":
-				// We only accept the default shell
-				// (i.e. no command in the Payload)
-				if len(req.Payload) == 0 {
-					req.Reply(true, nil)
-				}
-			case "pty-req":
-				termLen := req.Payload[3]
-				w, h := parseDims(req.Payload[termLen+4:])
-				SetWinsize(shf.Fd(), w, h)
-				// Responding true (OK) here will let the client
-				// know we have a pty ready for input
-				req.Reply(true, nil)
-			case "window-change":
-				w, h := parseDims(req.Payload)
-				SetWinsize(shf.Fd(), w, h)
-			}
-		}
-	}()
+	return shf, nil
 }
 
 // (base: https://github.com/peertechde/zodiac/blob/110fdd2dfd27359546c1cd75a9fec5de2882bf42/pkg/server/server.go#L228)

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/yamux"
 	"github.com/nwtgck/go-piping-sshd/piping_util"
+	"github.com/nwtgck/go-piping-sshd/priv_key"
 	"github.com/nwtgck/go-piping-sshd/ssh_server"
 	"github.com/nwtgck/go-piping-sshd/util"
 	"github.com/nwtgck/go-piping-sshd/version"
@@ -44,8 +45,8 @@ func init() {
 	// NOTE: --insecure, -k is inspired by curl
 	RootCmd.PersistentFlags().BoolVarP(&insecure, "insecure", "k", false, "Allow insecure server connections when using SSL")
 	RootCmd.PersistentFlags().StringArrayVarP(&headerKeyValueStrs, "header", "H", []string{}, "HTTP header")
-	RootCmd.PersistentFlags().IntVarP(&httpWriteBufSize, "http-write-buf-size", "", 16, "HTTP write-buffer size in bytes")
-	RootCmd.PersistentFlags().IntVarP(&httpReadBufSize, "http-read-buf-size", "", 16, "HTTP read-buffer size in bytes")
+	RootCmd.PersistentFlags().IntVarP(&httpWriteBufSize, "http-write-buf-size", "", 4096, "HTTP write-buffer size in bytes")
+	RootCmd.PersistentFlags().IntVarP(&httpReadBufSize, "http-read-buf-size", "", 4096, "HTTP read-buffer size in bytes")
 	RootCmd.Flags().BoolVarP(&showsVersion, "version", "v", false, "show version")
 	RootCmd.Flags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
 	RootCmd.Flags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
@@ -101,12 +102,8 @@ var RootCmd = &cobra.Command{
 			// No auth when password is empty
 			NoClientAuth: sshPassword == "",
 		}
-		// TODO: specify key by flags
-		key, err := ssh_server.GenerateKey()
-		if err != nil {
-			return err
-		}
-		pri, err := ssh.ParsePrivateKey(key)
+		// TODO: specify priv_key by flags
+		pri, err := ssh.ParsePrivateKey([]byte(priv_key.PrivateKeyPem))
 		if err != nil {
 			return err
 		}
@@ -146,7 +143,7 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 	if !sshYamux {
 		fmt.Println("=== Client host (socat + curl) ===")
 		fmt.Printf(
-			"  socat TCP-LISTEN:%d 'EXEC:curl -NsS %s!!EXEC:curl -NsST - %s'\n",
+			"  socat TCP-LISTEN:%d,reuseaddr 'EXEC:curl -NsS %s!!EXEC:curl -NsST - %s'\n",
 			clientHostPort,
 			strings.Replace(serverToClientUrl, ":", "\\:", -1),
 			strings.Replace(clientToServerUrl, ":", "\\:", -1),
