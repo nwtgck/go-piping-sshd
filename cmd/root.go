@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hashicorp/yamux"
 	"github.com/nwtgck/go-piping-sshd/piping_util"
+	"github.com/nwtgck/go-piping-sshd/priv_key"
 	"github.com/nwtgck/go-piping-sshd/ssh_server"
 	"github.com/nwtgck/go-piping-sshd/util"
 	"github.com/nwtgck/go-piping-sshd/version"
@@ -101,12 +102,8 @@ var RootCmd = &cobra.Command{
 			// No auth when password is empty
 			NoClientAuth: sshPassword == "",
 		}
-		// TODO: specify key by flags
-		key, err := ssh_server.GenerateKey()
-		if err != nil {
-			return err
-		}
-		pri, err := ssh.ParsePrivateKey(key)
+		// TODO: specify priv_key by flags
+		pri, err := ssh.ParsePrivateKey([]byte(priv_key.PrivateKeyPem))
 		if err != nil {
 			return err
 		}
