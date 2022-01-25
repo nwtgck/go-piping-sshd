@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.5.0] - 2022-01-25
+### Added
+* Support "exec" request type
+* Support SFTP
+
+### Changed
+* Use an embed private key, not random one
+* Use 4096 as default buffer sizes in HTTP for better speed
+* Update dependencies
+* Add `,reuseaddr` to the socat command	hint
+
 ## [0.4.0] - 2021-03-27
 ### Changed
 * Make the hint command shorter
@@ -26,7 +37,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Added
 * Initial release
 
-[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.4.0...0.5.0
 [0.4.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.3.1...0.4.0
 [0.3.1]: https://github.com/nwtgck/go-piping-sshd/compare/v0.3.0...0.3.1
 [0.3.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.2.0...0.3.0
