@@ -143,7 +143,7 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 	if !sshYamux {
 		fmt.Println("=== Client host (socat + curl) ===")
 		fmt.Printf(
-			"  socat TCP-LISTEN:%d 'EXEC:curl -NsS %s!!EXEC:curl -NsST - %s'\n",
+			"  socat TCP-LISTEN:%d,reuseaddr 'EXEC:curl -NsS %s!!EXEC:curl -NsST - %s'\n",
 			clientHostPort,
 			strings.Replace(serverToClientUrl, ":", "\\:", -1),
 			strings.Replace(clientToServerUrl, ":", "\\:", -1),
