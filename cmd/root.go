@@ -138,7 +138,7 @@ var RootCmd = &cobra.Command{
 
 		// If yamux is enabled
 		if sshYamux {
-			fmt.Println("[INFO] Multiplexing with yamux")
+			log.Printf("Multiplexing with yamux")
 			return sshHandleWithYamux(sshConfig, httpClient, headers, clientToServerUrl, serverToClientUrl)
 		}
 		return nil
