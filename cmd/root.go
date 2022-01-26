@@ -31,6 +31,7 @@ var httpWriteBufSize int
 var httpReadBufSize int
 var sshYamux bool
 var sshUser string
+var allowsEmptyPassword bool
 var sshPassword string
 var sshShell string
 
@@ -50,6 +51,7 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(&showsVersion, "version", "v", false, "show version")
 	RootCmd.PersistentFlags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
 	RootCmd.PersistentFlags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
+	RootCmd.PersistentFlags().BoolVarP(&allowsEmptyPassword, "allows-empty-password", "", false, "Allows to run SSH server with empty password")
 	RootCmd.PersistentFlags().StringVarP(&sshShell, "shell", "", "", "Shell")
 	RootCmd.PersistentFlags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
 }
@@ -63,6 +65,11 @@ var RootCmd = &cobra.Command{
 		if showsVersion {
 			fmt.Println(version.Version)
 			return nil
+		}
+		if sshPassword == "" {
+			if !allowsEmptyPassword {
+				return fmt.Errorf("specify non-empty --password or --allows-empty-password")
+			}
 		}
 
 		clientToServerPath, serverToClientPath, err := generatePaths(args)
