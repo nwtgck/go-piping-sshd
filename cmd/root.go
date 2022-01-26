@@ -181,10 +181,11 @@ func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, he
 			if err != nil {
 				return nil, err
 			}
-			contentType := res.Header.Get("Content-Type")
+			contentTypes := res.Header.Values("Content-Type")
+			// NOTE: No Content-Type is for curl user
 			// NOTE: application/octet-stream is for compatibility
-			if contentType != yamuxMimeType && contentType != "application/octet-stream" {
-				return nil, errors.Errorf("invalid content-type: %s", contentType)
+			if !(len(contentTypes) == 0 || contentTypes[0] == yamuxMimeType || contentTypes[0] == "application/octet-stream") {
+				return nil, errors.Errorf("invalid content-type: %s", contentTypes)
 			}
 			return res, nil
 		},
