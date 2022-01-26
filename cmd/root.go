@@ -47,11 +47,11 @@ func init() {
 	RootCmd.PersistentFlags().StringArrayVarP(&headerKeyValueStrs, "header", "H", []string{}, "HTTP header")
 	RootCmd.PersistentFlags().IntVarP(&httpWriteBufSize, "http-write-buf-size", "", 4096, "HTTP write-buffer size in bytes")
 	RootCmd.PersistentFlags().IntVarP(&httpReadBufSize, "http-read-buf-size", "", 4096, "HTTP read-buffer size in bytes")
-	RootCmd.Flags().BoolVarP(&showsVersion, "version", "v", false, "show version")
-	RootCmd.Flags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
-	RootCmd.Flags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
-	RootCmd.Flags().StringVarP(&sshShell, "shell", "", "", "Shell")
-	RootCmd.Flags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
+	RootCmd.PersistentFlags().BoolVarP(&showsVersion, "version", "v", false, "show version")
+	RootCmd.PersistentFlags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
+	RootCmd.PersistentFlags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
+	RootCmd.PersistentFlags().StringVarP(&sshShell, "shell", "", "", "Shell")
+	RootCmd.PersistentFlags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
 }
 
 var RootCmd = &cobra.Command{
