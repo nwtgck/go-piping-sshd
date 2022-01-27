@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.6.0] - 2022-01-27
+### Changed
+* Allow no Content-Type
+* Use `--allows-empty-password` to allow the empty password
+
 ## [0.5.0] - 2022-01-25
 ### Added
 * Support "exec" request type
@@ -37,7 +42,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Added
 * Initial release
 
-[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.5.0...0.6.0
 [0.5.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.4.0...0.5.0
 [0.4.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.3.1...0.4.0
 [0.3.1]: https://github.com/nwtgck/go-piping-sshd/compare/v0.3.0...0.3.1
