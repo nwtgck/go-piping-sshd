@@ -40,7 +40,7 @@ ssh-keygen -R [localhost]:2022; ssh -p 2022 dummy@localhost
 
 ## CAUTION
 
-Running this command exposes SSH server to public Piping Server by default. Someone who knows paths on the Piping Server can run any command on the machine. 
+Running this command exposes SSH server to public Piping Server. Someone who knows paths on the Piping Server can run any command on the machine. 
 
 Here are ways for using securely.
 
