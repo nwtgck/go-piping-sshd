@@ -12,8 +12,8 @@ brew install nwtgck/piping-sshd/piping-sshd
 
 ## Install for Ubuntu
 ```bash
-wget https://github.com/nwtgck/go-piping-sshd/releases/download/v0.4.0/piping-sshd-0.4.0-linux-amd64.deb
-dpkg -i piping-sshd-0.4.0-linux-amd64.deb 
+wget https://github.com/nwtgck/go-piping-sshd/releases/download/v0.6.0/piping-sshd-0.6.0-linux-amd64.deb
+dpkg -i piping-sshd-0.6.0-linux-amd64.deb 
 ```
 
 Get more executables in the [releases](https://github.com/nwtgck/go-piping-sshd/releases).
@@ -36,6 +36,30 @@ Run the command below in the machine B to ssh. The password is `changeme`.
 
 ```bash
 ssh-keygen -R [localhost]:2022; ssh -p 2022 dummy@localhost
+```
+
+## Help
+
+```txt
+SSH server from anywhere with Piping Server
+
+Usage:
+  piping-sshd [flags]
+
+Flags:
+      --allows-empty-password     Allows to run SSH server with empty password
+      --dns-server string         DNS server (e.g. 1.1.1.1:53)
+  -H, --header stringArray        HTTP header
+  -h, --help                      help for piping-sshd
+      --http-read-buf-size int    HTTP read-buffer size in bytes (default 4096)
+      --http-write-buf-size int   HTTP write-buffer size in bytes (default 4096)
+  -k, --insecure                  Allow insecure server connections when using SSL
+  -p, --password string           SSH user password
+  -s, --server string             Piping Server URL (default "https://ppng.io")
+      --shell string              Shell
+  -u, --user string               SSH user name
+  -v, --version                   show version
+      --yamux                     Multiplex connection by yamux
 ```
 
 ## CAUTION
