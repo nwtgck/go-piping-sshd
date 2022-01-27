@@ -2,9 +2,9 @@ project_name: piping-sshd
 builds:
   - env:
       - CGO_ENABLED=0
-    # NOTE: Windows is not supported now
     goos:
       - linux
+      - windows
       - darwin
       - freebsd
     goarch:
