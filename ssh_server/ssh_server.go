@@ -9,9 +9,7 @@ import (
 	"encoding/binary"
 	"encoding/pem"
 	"fmt"
-	"github.com/creack/pty"
 	"github.com/mattn/go-shellwords"
-	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 	"io"
@@ -21,8 +19,6 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
-	"syscall"
-	"unsafe"
 )
 
 type exitStatusMsg struct {
@@ -73,16 +69,17 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 			w, h := parseDims(req.Payload[termLen+4:])
 			shf, err = createPty(shell, connection)
 			if err != nil {
+				req.Reply(false, nil)
 				return
 			}
-			SetWinsize(shf.Fd(), w, h)
+			setWinsize(shf, w, h)
 			// Responding true (OK) here will let the client
 			// know we have a pty ready for input
 			req.Reply(true, nil)
 		case "window-change":
 			w, h := parseDims(req.Payload)
 			if shf != nil {
-				SetWinsize(shf.Fd(), w, h)
+				setWinsize(shf, w, h)
 			}
 		case "subsystem":
 			handleSessionSubSystem(req, connection)
@@ -152,51 +149,6 @@ func handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
 	}
 }
 
-func createPty(shell string, connection ssh.Channel) (*os.File, error) {
-	if shell == "" {
-		shell = os.Getenv("SHELL")
-	}
-	if shell == "" {
-		shell = "sh"
-	}
-	// Fire up bash for this session
-	sh := exec.Command(shell)
-
-	// Prepare teardown function
-	closer := func() {
-		connection.SendRequest("exit-status", false, ssh.Marshal(exitStatusMsg{
-			Status: 0,
-		}))
-		connection.Close()
-		_, err := sh.Process.Wait()
-		if err != nil {
-			log.Printf("Failed to exit bash (%s)", err)
-		}
-		log.Printf("Session closed")
-	}
-
-	// Allocate a terminal for this channel
-	log.Print("Creating pty...")
-	shf, err := pty.Start(sh)
-	if err != nil {
-		log.Printf("Could not start pty (%s)", err)
-		closer()
-		return nil, errors.Errorf("could not start pty (%s)", err)
-	}
-
-	// pipe session to bash and visa-versa
-	var once sync.Once
-	go func() {
-		io.Copy(connection, shf)
-		once.Do(closer)
-	}()
-	go func() {
-		io.Copy(shf, connection)
-		once.Do(closer)
-	}()
-	return shf, nil
-}
-
 // (base: https://github.com/peertechde/zodiac/blob/110fdd2dfd27359546c1cd75a9fec5de2882bf42/pkg/server/server.go#L228)
 func handleDirectTcpip(newChannel ssh.NewChannel) {
 	var msg struct {
@@ -246,20 +198,6 @@ func parseDims(b []byte) (uint32, uint32) {
 }
 
 // ======================
-
-// Winsize stores the Height and Width of a terminal.
-type Winsize struct {
-	Height uint16
-	Width  uint16
-	x      uint16 // unused
-	y      uint16 // unused
-}
-
-// SetWinsize sets the size of the given pty.
-func SetWinsize(fd uintptr, w, h uint32) {
-	ws := &Winsize{Width: uint16(w), Height: uint16(h)}
-	syscall.Syscall(syscall.SYS_IOCTL, fd, uintptr(syscall.TIOCSWINSZ), uintptr(unsafe.Pointer(ws)))
-}
 
 func GenerateKey() ([]byte, error) {
 	var r io.Reader
