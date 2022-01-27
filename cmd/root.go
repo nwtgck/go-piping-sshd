@@ -15,7 +15,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 )
 
 const (
@@ -31,6 +30,7 @@ var httpWriteBufSize int
 var httpReadBufSize int
 var sshYamux bool
 var sshUser string
+var allowsEmptyPassword bool
 var sshPassword string
 var sshShell string
 
@@ -47,11 +47,12 @@ func init() {
 	RootCmd.PersistentFlags().StringArrayVarP(&headerKeyValueStrs, "header", "H", []string{}, "HTTP header")
 	RootCmd.PersistentFlags().IntVarP(&httpWriteBufSize, "http-write-buf-size", "", 4096, "HTTP write-buffer size in bytes")
 	RootCmd.PersistentFlags().IntVarP(&httpReadBufSize, "http-read-buf-size", "", 4096, "HTTP read-buffer size in bytes")
-	RootCmd.Flags().BoolVarP(&showsVersion, "version", "v", false, "show version")
-	RootCmd.Flags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
-	RootCmd.Flags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
-	RootCmd.Flags().StringVarP(&sshShell, "shell", "", "", "Shell")
-	RootCmd.Flags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
+	RootCmd.PersistentFlags().BoolVarP(&showsVersion, "version", "v", false, "show version")
+	RootCmd.PersistentFlags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
+	RootCmd.PersistentFlags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
+	RootCmd.PersistentFlags().BoolVarP(&allowsEmptyPassword, "allows-empty-password", "", false, "Allows to run SSH server with empty password")
+	RootCmd.PersistentFlags().StringVarP(&sshShell, "shell", "", "", "Shell")
+	RootCmd.PersistentFlags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
 }
 
 var RootCmd = &cobra.Command{
@@ -63,6 +64,11 @@ var RootCmd = &cobra.Command{
 		if showsVersion {
 			fmt.Println(version.Version)
 			return nil
+		}
+		if sshPassword == "" {
+			if !allowsEmptyPassword {
+				return fmt.Errorf("specify non-empty --password or --allows-empty-password")
+			}
 		}
 
 		clientToServerPath, serverToClientPath, err := generatePaths(args)
@@ -131,7 +137,7 @@ var RootCmd = &cobra.Command{
 
 		// If yamux is enabled
 		if sshYamux {
-			fmt.Println("[INFO] Multiplexing with yamux")
+			log.Printf("Multiplexing with yamux")
 			return sshHandleWithYamux(sshConfig, httpClient, headers, clientToServerUrl, serverToClientUrl)
 		}
 		return nil
@@ -143,10 +149,10 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 	if !sshYamux {
 		fmt.Println("=== Client host (socat + curl) ===")
 		fmt.Printf(
-			"  socat TCP-LISTEN:%d,reuseaddr 'EXEC:curl -NsS %s!!EXEC:curl -NsST - %s'\n",
+			"  curl -NsS %s | socat TCP-LISTEN:%d,reuseaddr - | curl -NsST - %s\n",
+			serverToClientUrl,
 			clientHostPort,
-			strings.Replace(serverToClientUrl, ":", "\\:", -1),
-			strings.Replace(clientToServerUrl, ":", "\\:", -1),
+			clientToServerUrl,
 		)
 	}
 	flags := ""
@@ -181,10 +187,11 @@ func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, he
 			if err != nil {
 				return nil, err
 			}
-			contentType := res.Header.Get("Content-Type")
+			contentTypes := res.Header.Values("Content-Type")
+			// NOTE: No Content-Type is for curl user
 			// NOTE: application/octet-stream is for compatibility
-			if contentType != yamuxMimeType && contentType != "application/octet-stream" {
-				return nil, errors.Errorf("invalid content-type: %s", contentType)
+			if !(len(contentTypes) == 0 || contentTypes[0] == yamuxMimeType || contentTypes[0] == "application/octet-stream") {
+				return nil, errors.Errorf("invalid content-type: %s", contentTypes)
 			}
 			return res, nil
 		},

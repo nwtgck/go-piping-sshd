@@ -23,16 +23,16 @@ Get more executables in the [releases](https://github.com/nwtgck/go-piping-sshd/
 Run the command below in machine A which will be controlled.
 
 ```bash
-piping-sshd mypath
+piping-sshd mypath --password=changeme
 ```
 
 Run the command below in another machine B which will control the machine A.
 
 ```bash
-socat TCP-LISTEN:2022 'EXEC:curl -NsS https\://ppng.io/mypath/sc!!EXEC:curl -NsST - https\://ppng.io/mypath/cs'
+curl -NsS https://ppng.io/mypath/sc | socat TCP-LISTEN:2022,reuseaddr - | curl -NsST - https://ppng.io/mypath/cs
 ```
 
-Run the command below in the machine B to ssh.
+Run the command below in the machine B to ssh. The password is `changeme`.
 
 ```bash
 ssh-keygen -R [localhost]:2022; ssh -p 2022 dummy@localhost
@@ -40,7 +40,7 @@ ssh-keygen -R [localhost]:2022; ssh -p 2022 dummy@localhost
 
 ## CAUTION
 
-Running this command exposes SSH server to public Piping Server by default. Someone who knows paths on the Piping Server can run any command on the machine. 
+Running this command exposes SSH server to public Piping Server. Someone who knows paths on the Piping Server can run any command on the machine. 
 
 Here are ways for using securely.
 
