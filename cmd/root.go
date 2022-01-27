@@ -128,7 +128,7 @@ var RootCmd = &cobra.Command{
 				return nil
 			}
 
-			log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
+			log.Printf("New SSH connection from (%s)", sshConn.ClientVersion())
 			// Discard all global out-of-band Requests
 			go ssh.DiscardRequests(reqs)
 			// Accept all channels
