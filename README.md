@@ -47,7 +47,7 @@ Usage:
   piping-sshd [flags]
 
 Flags:
-      --allows-empty-password     Allows to run SSH server with empty password
+      --allow-empty-password      Allows to run SSH server with empty password
       --dns-server string         DNS server (e.g. 1.1.1.1:53)
   -H, --header stringArray        HTTP header
   -h, --help                      help for piping-sshd
