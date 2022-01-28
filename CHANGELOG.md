@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 
 ## [Unreleased]
 
+## [0.7.0] - 2022-01-28
+### Added
+* Support Windows partially (Port-forwarding and SFTP supported, pty not supported)
+
+### Changed
+* (breaking) Rename --allows-empty-password to --allow-empty-password because `--allow-` is more commonly used
+
 ## [0.6.0] - 2022-01-27
 ### Changed
 * Allow no Content-Type
@@ -42,7 +49,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 ### Added
 * Initial release
 
-[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/nwtgck/go-piping-sshd/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.6.0...0.7.0
 [0.6.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.5.0...0.6.0
 [0.5.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.4.0...0.5.0
 [0.4.0]: https://github.com/nwtgck/go-piping-sshd/compare/v0.3.1...0.4.0

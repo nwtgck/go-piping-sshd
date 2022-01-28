@@ -50,7 +50,7 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(&showsVersion, "version", "v", false, "show version")
 	RootCmd.PersistentFlags().StringVarP(&sshUser, "user", "u", "", "SSH user name")
 	RootCmd.PersistentFlags().StringVarP(&sshPassword, "password", "p", "", "SSH user password")
-	RootCmd.PersistentFlags().BoolVarP(&allowsEmptyPassword, "allows-empty-password", "", false, "Allows to run SSH server with empty password")
+	RootCmd.PersistentFlags().BoolVarP(&allowsEmptyPassword, "allow-empty-password", "", false, "Allows to run SSH server with empty password")
 	RootCmd.PersistentFlags().StringVarP(&sshShell, "shell", "", "", "Shell")
 	RootCmd.PersistentFlags().BoolVarP(&sshYamux, "yamux", "", false, "Multiplex connection by yamux")
 }
@@ -67,7 +67,7 @@ var RootCmd = &cobra.Command{
 		}
 		if sshPassword == "" {
 			if !allowsEmptyPassword {
-				return fmt.Errorf("specify non-empty --password or --allows-empty-password")
+				return fmt.Errorf("specify non-empty --password or --allow-empty-password")
 			}
 		}
 
@@ -128,7 +128,7 @@ var RootCmd = &cobra.Command{
 				return nil
 			}
 
-			log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
+			log.Printf("New SSH connection from (%s)", sshConn.ClientVersion())
 			// Discard all global out-of-band Requests
 			go ssh.DiscardRequests(reqs)
 			// Accept all channels
