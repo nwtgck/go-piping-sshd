@@ -12,8 +12,8 @@ brew install nwtgck/piping-sshd/piping-sshd
 
 ## Install for Ubuntu
 ```bash
-wget https://github.com/nwtgck/go-piping-sshd/releases/download/v0.7.0/piping-sshd-0.7.0-linux-amd64.deb
-dpkg -i piping-sshd-0.7.0-linux-amd64.deb 
+wget https://github.com/nwtgck/go-piping-sshd/releases/download/v0.8.0/piping-sshd-0.8.0-linux-amd64.deb
+dpkg -i piping-sshd-0.8.0-linux-amd64.deb
 ```
 
 Get more executables in the [releases](https://github.com/nwtgck/go-piping-sshd/releases).
