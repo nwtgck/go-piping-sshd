@@ -215,3 +215,76 @@ func GenerateKey() ([]byte, error) {
 }
 
 // Borrowed from https://github.com/creack/termios/blob/master/win/win.go
+
+// ======================================================================
+
+func HandleGlobalRequests(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request) {
+	for req := range reqs {
+		switch req.Type {
+		case "tcpip-forward":
+			handleTcpipForward(sshConn, req)
+		default:
+			// discard
+			if req.WantReply {
+				req.Reply(false, nil)
+			}
+			log.Printf("Request type %s discarded", req.Type)
+		}
+	}
+}
+
+// https://datatracker.ietf.org/doc/html/rfc4254#section-7.1
+func handleTcpipForward(sshConn *ssh.ServerConn, req *ssh.Request) {
+	var msg struct {
+		Addr string
+		Port uint32
+	}
+	if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
+		req.Reply(false, nil)
+		return
+	}
+	ln, err := net.Listen("tcp", net.JoinHostPort(msg.Addr, strconv.Itoa(int(msg.Port))))
+	if err != nil {
+		req.Reply(false, nil)
+		return
+	}
+	go func() {
+		sshConn.Wait()
+		ln.Close()
+		log.Printf("Address %s closed", ln.Addr())
+	}()
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		var replyMsg struct {
+			Addr           string
+			Port           uint32
+			OriginatorAddr string
+			OriginatorPort uint32
+		}
+		replyMsg.Addr = msg.Addr
+		replyMsg.Port = msg.Port
+
+		go func() {
+			channel, reqs, err := sshConn.OpenChannel("forwarded-tcpip", ssh.Marshal(&replyMsg))
+			if err != nil {
+				req.Reply(false, nil)
+				conn.Close()
+				return
+			}
+			go ssh.DiscardRequests(reqs)
+			go func() {
+				io.Copy(channel, conn)
+				conn.Close()
+				channel.Close()
+			}()
+			go func() {
+				io.Copy(conn, channel)
+				conn.Close()
+				channel.Close()
+			}()
+		}()
+	}
+}

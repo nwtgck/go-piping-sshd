@@ -129,8 +129,7 @@ var RootCmd = &cobra.Command{
 			}
 
 			log.Printf("New SSH connection from (%s)", sshConn.ClientVersion())
-			// Discard all global out-of-band Requests
-			go ssh.DiscardRequests(reqs)
+			go ssh_server.HandleGlobalRequests(sshConn, reqs)
 			// Accept all channels
 			ssh_server.HandleChannels(sshShell, chans)
 		}
@@ -214,8 +213,7 @@ func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, he
 				return
 			}
 			log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
-			// Discard all global out-of-band Requests
-			go ssh.DiscardRequests(reqs)
+			go ssh_server.HandleGlobalRequests(sshConn, reqs)
 			// Accept all channels
 			ssh_server.HandleChannels(sshShell, chans)
 		}()
