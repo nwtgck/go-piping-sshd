@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/creack/pty v1.1.18
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/hashicorp/yamux v0.0.0-20211028200310-0bc27b27de87
+	github.com/hashicorp/yamux v0.1.1
 	github.com/mattn/go-shellwords v1.0.12
 	github.com/pkg/errors v0.9.1
 	github.com/pkg/sftp v1.13.5
