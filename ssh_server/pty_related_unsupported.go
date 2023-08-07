@@ -1,4 +1,5 @@
-//+build windows
+//go:build windows
+// +build windows
 
 package ssh_server
 
@@ -8,7 +9,7 @@ import (
 	"os"
 )
 
-func createPty(shell string, connection ssh.Channel) (*os.File, error) {
+func (s *Server) createPty(shell string, connection ssh.Channel) (*os.File, error) {
 	return nil, fmt.Errorf("creation of pty unsupported")
 }
 

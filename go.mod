@@ -11,4 +11,5 @@ require (
 	github.com/spf13/cobra v1.7.0
 	github.com/stretchr/testify v1.8.4 // indirect
 	golang.org/x/crypto v0.12.0
+	golang.org/x/exp v0.0.0-20230807204917-050eac23e9de
 )

@@ -12,8 +12,8 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/exp/slog"
 	"io"
-	"log"
 	"net"
 	"os"
 	"os/exec"
@@ -21,34 +21,38 @@ import (
 	"sync"
 )
 
+type Server struct {
+	Logger *slog.Logger
+}
+
 type exitStatusMsg struct {
 	Status uint32
 }
 
-func HandleChannels(shell string, chans <-chan ssh.NewChannel) {
+func (s *Server) HandleChannels(shell string, chans <-chan ssh.NewChannel) {
 	// Service the incoming Channel channel in go routine
 	for newChannel := range chans {
-		go handleChannel(shell, newChannel)
+		go s.handleChannel(shell, newChannel)
 	}
 }
 
-func handleChannel(shell string, newChannel ssh.NewChannel) {
+func (s *Server) handleChannel(shell string, newChannel ssh.NewChannel) {
 	switch newChannel.ChannelType() {
 	case "session":
-		handleSession(shell, newChannel)
+		s.handleSession(shell, newChannel)
 	case "direct-tcpip":
-		handleDirectTcpip(newChannel)
+		s.handleDirectTcpip(newChannel)
 	default:
 		newChannel.Reject(ssh.UnknownChannelType, fmt.Sprintf("unknown channel type: %s", newChannel.ChannelType()))
 	}
 }
 
-func handleSession(shell string, newChannel ssh.NewChannel) {
+func (s *Server) handleSession(shell string, newChannel ssh.NewChannel) {
 	// At this point, we have the opportunity to reject the client's
 	// request for another logical connection
 	connection, requests, err := newChannel.Accept()
 	if err != nil {
-		log.Printf("Could not accept channel (%s)", err)
+		s.Logger.Info("Could not accept channel", "err", err)
 		return
 	}
 
@@ -57,7 +61,7 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 	for req := range requests {
 		switch req.Type {
 		case "exec":
-			handleExecRequest(req, connection)
+			s.handleExecRequest(req, connection)
 		case "shell":
 			// We only accept the default shell
 			// (i.e. no command in the Payload)
@@ -67,7 +71,7 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 		case "pty-req":
 			termLen := req.Payload[3]
 			w, h := parseDims(req.Payload[termLen+4:])
-			shf, err = createPty(shell, connection)
+			shf, err = s.createPty(shell, connection)
 			if err != nil {
 				req.Reply(false, nil)
 				return
@@ -82,17 +86,17 @@ func handleSession(shell string, newChannel ssh.NewChannel) {
 				setWinsize(shf, w, h)
 			}
 		case "subsystem":
-			handleSessionSubSystem(req, connection)
+			s.handleSessionSubSystem(req, connection)
 		}
 	}
 }
 
-func handleExecRequest(req *ssh.Request, connection ssh.Channel) {
+func (s *Server) handleExecRequest(req *ssh.Request, connection ssh.Channel) {
 	var msg struct {
 		Command string
 	}
 	if err := ssh.Unmarshal(req.Payload, &msg); err != nil {
-		log.Printf("error in parse message (%v) in exec", err)
+		s.Logger.Info("failed to parse message in exec", "err", err)
 		return
 	}
 	cmdSlice, err := shellwords.Parse(msg.Command)
@@ -128,7 +132,7 @@ func handleExecRequest(req *ssh.Request, connection ssh.Channel) {
 	connection.Close()
 }
 
-func handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
+func (s *Server) handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
 	// https://github.com/pkg/sftp/blob/42e9800606febe03f9cdf1d1283719af4a5e6456/examples/go-sftp-server/main.go#L111
 	ok := string(req.Payload[4:]) == "sftp"
 	req.Reply(ok, nil)
@@ -138,19 +142,19 @@ func handleSessionSubSystem(req *ssh.Request, connection ssh.Channel) {
 	}
 	sftpServer, err := sftp.NewServer(connection, serverOptions...)
 	if err != nil {
-		log.Printf("failed to create sftp server (%v)", err)
+		s.Logger.Info("failed to create sftp server", "err", err)
 		return
 	}
 	if err := sftpServer.Serve(); err == io.EOF {
 		sftpServer.Close()
 	} else if err != nil {
-		log.Printf("failed to serve sftp server (%v)", err)
+		s.Logger.Info("failed to serve sftp server", "err", err)
 		return
 	}
 }
 
 // (base: https://github.com/peertechde/zodiac/blob/110fdd2dfd27359546c1cd75a9fec5de2882bf42/pkg/server/server.go#L228)
-func handleDirectTcpip(newChannel ssh.NewChannel) {
+func (s *Server) handleDirectTcpip(newChannel ssh.NewChannel) {
 	var msg struct {
 		RemoteAddr string
 		RemotePort uint32
@@ -158,19 +162,19 @@ func handleDirectTcpip(newChannel ssh.NewChannel) {
 		SourcePort uint32
 	}
 	if err := ssh.Unmarshal(newChannel.ExtraData(), &msg); err != nil {
-		log.Printf("error in parse message (%v)", err)
+		s.Logger.Info("failed to parse message", "err", err)
 		return
 	}
 	channel, reqs, err := newChannel.Accept()
 	if err != nil {
-		log.Printf("accept error (%v)", err)
+		s.Logger.Info("failed to accept", "err", err)
 		return
 	}
 	go ssh.DiscardRequests(reqs)
 	raddr := net.JoinHostPort(msg.RemoteAddr, strconv.Itoa(int(msg.RemotePort)))
 	conn, err := net.Dial("tcp", raddr)
 	if err != nil {
-		log.Printf("dial error (%v)", err)
+		s.Logger.Info("failed to dial", "err", err)
 		channel.Close()
 		return
 	}
@@ -218,23 +222,23 @@ func GenerateKey() ([]byte, error) {
 
 // ======================================================================
 
-func HandleGlobalRequests(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request) {
+func (s *Server) HandleGlobalRequests(sshConn *ssh.ServerConn, reqs <-chan *ssh.Request) {
 	for req := range reqs {
 		switch req.Type {
 		case "tcpip-forward":
-			handleTcpipForward(sshConn, req)
+			s.handleTcpipForward(sshConn, req)
 		default:
 			// discard
 			if req.WantReply {
 				req.Reply(false, nil)
 			}
-			log.Printf("Request type %s discarded", req.Type)
+			s.Logger.Info("request discarded", "request_type", req.Type)
 		}
 	}
 }
 
 // https://datatracker.ietf.org/doc/html/rfc4254#section-7.1
-func handleTcpipForward(sshConn *ssh.ServerConn, req *ssh.Request) {
+func (s *Server) handleTcpipForward(sshConn *ssh.ServerConn, req *ssh.Request) {
 	var msg struct {
 		Addr string
 		Port uint32
@@ -251,7 +255,7 @@ func handleTcpipForward(sshConn *ssh.ServerConn, req *ssh.Request) {
 	go func() {
 		sshConn.Wait()
 		ln.Close()
-		log.Printf("Address %s closed", ln.Addr())
+		s.Logger.Info("connection closed", "address", ln.Addr().String())
 	}()
 	for {
 		conn, err := ln.Accept()

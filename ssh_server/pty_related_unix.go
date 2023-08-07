@@ -1,4 +1,6 @@
+//go:build !windows
 // +build !windows
+
 // NOTE: pty.Start() is not supported in Windows
 
 package ssh_server
@@ -8,13 +10,12 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"sync"
 )
 
-func createPty(shell string, connection ssh.Channel) (*os.File, error) {
+func (s *Server) createPty(shell string, connection ssh.Channel) (*os.File, error) {
 	if shell == "" {
 		shell = os.Getenv("SHELL")
 	}
@@ -32,16 +33,16 @@ func createPty(shell string, connection ssh.Channel) (*os.File, error) {
 		connection.Close()
 		_, err := sh.Process.Wait()
 		if err != nil {
-			log.Printf("Failed to exit bash (%s)", err)
+			s.Logger.Info("failed to exit shell", err)
 		}
-		log.Printf("Session closed")
+		s.Logger.Info("session closed")
 	}
 
 	// Allocate a terminal for this channel
-	log.Print("Creating pty...")
+	s.Logger.Info("creating pty...")
 	shf, err := pty.Start(sh)
 	if err != nil {
-		log.Printf("Could not start pty (%s)", err)
+		s.Logger.Info("failed to start pty", "err", err)
 		closer()
 		return nil, errors.Errorf("could not start pty (%s)", err)
 	}

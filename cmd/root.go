@@ -11,8 +11,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/exp/slog"
 	"io"
-	"log"
 	"net/http"
 	"os"
 )
@@ -70,7 +70,10 @@ var RootCmd = &cobra.Command{
 				return fmt.Errorf("specify non-empty --password or --allow-empty-password")
 			}
 		}
-
+		logger := slog.Default()
+		sshServer := &ssh_server.Server{
+			Logger: logger,
+		}
 		clientToServerPath, serverToClientPath, err := generatePaths(args)
 		if err != nil {
 			return err
@@ -124,20 +127,20 @@ var RootCmd = &cobra.Command{
 			// Before use, a handshake must be performed on the incoming net.Conn.
 			sshConn, chans, reqs, err := ssh.NewServerConn(util.NewDuplexConn(duplex), sshConfig)
 			if err != nil {
-				log.Printf("Failed to handshake (%s)", err)
+				logger.Info("failed to handshake", "err", err)
 				return nil
 			}
 
-			log.Printf("New SSH connection from (%s)", sshConn.ClientVersion())
-			go ssh_server.HandleGlobalRequests(sshConn, reqs)
+			logger.Info("new SSH connection", "client_version", string(sshConn.ClientVersion()))
+			go sshServer.HandleGlobalRequests(sshConn, reqs)
 			// Accept all channels
-			ssh_server.HandleChannels(sshShell, chans)
+			sshServer.HandleChannels(sshShell, chans)
 		}
 
 		// If yamux is enabled
 		if sshYamux {
-			log.Printf("Multiplexing with yamux")
-			return sshHandleWithYamux(sshConfig, httpClient, headers, clientToServerUrl, serverToClientUrl)
+			logger.Info("Multiplexing with yamux")
+			return sshHandleWithYamux(logger, sshConfig, sshServer, httpClient, headers, clientToServerUrl, serverToClientUrl)
 		}
 		return nil
 	},
@@ -175,7 +178,7 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s\n", clientHostPort, clientHostPort, userAndHost)
 }
 
-func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
+func sshHandleWithYamux(logger *slog.Logger, sshConfig *ssh.ServerConfig, sshServer *ssh_server.Server, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
 	var duplex io.ReadWriteCloser
 	duplex, err := piping_util.DuplexConnectWithHandlers(
 		func(body io.Reader) (*http.Response, error) {
@@ -209,13 +212,13 @@ func sshHandleWithYamux(sshConfig *ssh.ServerConfig, httpClient *http.Client, he
 			// Before use, a handshake must be performed on the incoming net.Conn.
 			sshConn, chans, reqs, err := ssh.NewServerConn(yamuxStream, sshConfig)
 			if err != nil {
-				log.Printf("Failed to handshake (%s)", err)
+				logger.Info("failed to handshake", "err", err)
 				return
 			}
-			log.Printf("New SSH connection from %s (%s)", sshConn.RemoteAddr(), sshConn.ClientVersion())
-			go ssh_server.HandleGlobalRequests(sshConn, reqs)
+			logger.Info("new SSH connection", "remote_addr", sshConn.RemoteAddr().String(), "client_version", string(sshConn.ClientVersion()))
+			go sshServer.HandleGlobalRequests(sshConn, reqs)
 			// Accept all channels
-			ssh_server.HandleChannels(sshShell, chans)
+			sshServer.HandleChannels(sshShell, chans)
 		}()
 	}
 }
