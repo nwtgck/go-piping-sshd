@@ -5,9 +5,9 @@ import (
 	"github.com/hashicorp/yamux"
 	"github.com/nwtgck/go-piping-sshd/piping_util"
 	"github.com/nwtgck/go-piping-sshd/priv_key"
-	"github.com/nwtgck/go-piping-sshd/ssh_server"
 	"github.com/nwtgck/go-piping-sshd/util"
 	"github.com/nwtgck/go-piping-sshd/version"
+	"github.com/nwtgck/handy-sshd"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
@@ -71,8 +71,14 @@ var RootCmd = &cobra.Command{
 			}
 		}
 		logger := slog.Default()
-		sshServer := &ssh_server.Server{
-			Logger: logger,
+		sshServer := &handy_sshd.Server{
+			Logger:                  logger,
+			AllowTcpipForward:       true,
+			AllowDirectTcpip:        true,
+			AllowExecute:            true,
+			AllowSftp:               true,
+			AllowStreamlocalForward: true,
+			AllowDirectStreamlocal:  true,
 		}
 		clientToServerPath, serverToClientPath, err := generatePaths(args)
 		if err != nil {
@@ -178,7 +184,7 @@ func sshPrintHintForClientHost(clientToServerUrl string, serverToClientUrl strin
 	fmt.Printf("  ssh-keygen -R [localhost]:%d; ssh -p %d %s\n", clientHostPort, clientHostPort, userAndHost)
 }
 
-func sshHandleWithYamux(logger *slog.Logger, sshConfig *ssh.ServerConfig, sshServer *ssh_server.Server, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
+func sshHandleWithYamux(logger *slog.Logger, sshConfig *ssh.ServerConfig, sshServer *handy_sshd.Server, httpClient *http.Client, headers []piping_util.KeyValue, clientToServerUrl string, serverToClientUrl string) error {
 	var duplex io.ReadWriteCloser
 	duplex, err := piping_util.DuplexConnectWithHandlers(
 		func(body io.Reader) (*http.Response, error) {

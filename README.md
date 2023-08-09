@@ -1,10 +1,6 @@
 # go-piping-sshd
 SSH server from anywhere with [Piping Server](https://github.com/nwtgck/piping-server)
 
-## Thanks
-
-SSH server implementation for shell is highly based on <https://github.com/jpillora/sshd-lite/blob/master/server/server.go>. Thanks!
-
 ## Install for macOS
 ```bash
 brew install nwtgck/piping-sshd/piping-sshd
