@@ -4,15 +4,15 @@ go 1.18
 
 require (
 	github.com/hashicorp/yamux v0.1.1
-	github.com/nwtgck/handy-sshd v0.4.1
+	github.com/nwtgck/handy-sshd v0.4.2
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.0
 	golang.org/x/crypto v0.22.0
-	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
+	golang.org/x/exp v0.0.0-20240404231335-c0f41cb1a7a0
 )
 
 require (
-	github.com/creack/pty v1.1.18 // indirect
+	github.com/creack/pty v1.1.21 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/fs v0.1.0 // indirect
 	github.com/mattn/go-shellwords v1.0.12 // indirect
