@@ -6,7 +6,7 @@ require (
 	github.com/hashicorp/yamux v0.1.1
 	github.com/nwtgck/handy-sshd v0.4.3
 	github.com/pkg/errors v0.9.1
-	github.com/spf13/cobra v1.8.0
+	github.com/spf13/cobra v1.8.1
 	golang.org/x/crypto v0.24.0
 	golang.org/x/exp v0.0.0-20240525044651-4c93da0ed11d
 )
