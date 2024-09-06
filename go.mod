@@ -7,7 +7,7 @@ require (
 	github.com/nwtgck/handy-sshd v0.4.3
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
-	golang.org/x/crypto v0.25.0
+	golang.org/x/crypto v0.27.0
 	golang.org/x/exp v0.0.0-20240525044651-4c93da0ed11d
 )
 
@@ -18,5 +18,5 @@ require (
 	github.com/mattn/go-shellwords v1.0.12 // indirect
 	github.com/pkg/sftp v1.13.6 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	golang.org/x/sys v0.22.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 )
