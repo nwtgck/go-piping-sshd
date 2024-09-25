@@ -3,7 +3,7 @@ module github.com/nwtgck/go-piping-sshd
 go 1.18
 
 require (
-	github.com/hashicorp/yamux v0.1.1
+	github.com/hashicorp/yamux v0.1.2
 	github.com/nwtgck/handy-sshd v0.4.3
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
